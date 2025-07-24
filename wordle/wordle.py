@@ -1,4 +1,16 @@
 import pygame
+import requests
+
+base_url = "https://random-word-api.herokuapp.com/"
+word_of_day = "PLATE"
+def get_word():
+    url = f"{base_url}/word?length=5"
+    response = requests.get(url)
+
+    if response.status_code == 200:
+        global word_of_day
+        word_of_day = "".join(response.json()).upper()
+        print(word_of_day)
 
 # create the game screen
 screen = pygame.display.set_mode((500, 500))
@@ -12,8 +24,9 @@ alphabet = ['A', 'B', 'C', 'D', 'E', 'F',
             'M', 'N', 'O', 'P', 'Q', 'R',
             'S', 'T', 'U', 'V', 'W', 'X',
             'Y', 'Z']
-word_of_day = "PLATE"
 user_row = 0
+global wordle_finished
+wordle_finished = False
 
 # vars
 sq_dimensions = 50
@@ -64,10 +77,11 @@ class Letter:
             pygame.draw.rect(screen, self.no_letter_outline_color, (x, y, self.dimensions, self.dimensions), self.border_width)
         
         # draw letter
-        text = font.render(wordle_array[r][c].letter, True, (0, 0, 0))
+        text = font.render(self.letter, True, (0, 0, 0))
         # text rect is like a thing for text to sit on/be seen on
         textRect = text.get_rect()
-        textRect.center = (110 + c*55 + wordle_array[r][c].dimensions/2, 100+ wordle_array[r][c].dimensions/2)
+        #NOTE: the c and r come from the 2 for loops this function is called in... a bit scary yep
+        textRect.center = (110 + c*55 + self.dimensions/2, 50+ r*55 + self.dimensions/2)
         screen.blit(text, textRect)
         
 
@@ -76,6 +90,7 @@ class Letter:
 
 # setup
 def setup():
+    get_word()
     for r in range(0, 6, 1):
         word_array = []
         for c in range(0, 5, 1):
@@ -84,6 +99,7 @@ def setup():
 
 # assigns statuses to different boxes
 def check_word(word_array):
+    word_correct = True
     for i in range(len(word_array)):
         # first check if the letter is in the correct position
         if word_array[i].letter == word_of_day[i:i+1]:
@@ -92,11 +108,17 @@ def check_word(word_array):
         # 2nd, check if letter is in the word
         elif word_array[i].letter in word_of_day:
             print("in there but wrong pos")
+            word_correct = False
             word_array[i].status = "wrong pos"
         # if none, then must not be in word
         else:
             print("not there")
             word_array[i].status = "not in word"
+            word_correct = False
+    if word_correct == True:
+        global wordle_finished
+        wordle_finished = True
+    
         
 
 setup()
@@ -107,7 +129,7 @@ while run:
     # draw the lil boxes
     for r in range(0, 6, 1):
         for c in range(0, 5, 1):
-            wordle_array[r][c].show(110 + c*55, 100)
+            wordle_array[r][c].show(110 + c*55, 50 + r*55)
         
 
     # event handler. basically takes all events
@@ -121,7 +143,7 @@ while run:
             run = False
 
         # type in a letter to spell a word
-        if event.type == pygame.KEYDOWN:
+        if event.type == pygame.KEYDOWN and wordle_finished == False:
             # find out which key it was
             print(event.unicode.upper())
             # this turns events/keys you pressed into a string
@@ -137,6 +159,7 @@ while run:
                         all_boxes_have_letters = False
                 if all_boxes_have_letters == True:
                     check_word(wordle_array[user_row])
+                    user_row += 1
             
             # if the key was "backspace", delete the most recent letter in the word
             if event.key == pygame.K_BACKSPACE:
